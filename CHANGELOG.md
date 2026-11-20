@@ -22,8 +22,11 @@ Faster work, better orientation and production tools for laser / plotter cutting
 - `import_file` from a `url` or `data_base64`.
 - Modifying tools activate the target page first (CorelDRAW silently ignores grouping on an inactive page).
 - A timeout tells whether CorelDRAW is not responding.
+- `new_document` with `path` saves the new document right away, which gives it its name.
 - Setup window: two-column layout without scrolling, shows the Claude Desktop config file
-  ("Show file") and how to find it in Claude (Settings → Developer → Edit Config).
+  ("Show file") and how to find it in Claude (Settings → Developer → Edit Config); with several config
+  files it marks the one Claude Desktop actually uses; "Manually (JSON)" tab with the entry to paste;
+  shows the CorelDRAW version LeoDraw was tested with.
 
 ## 0.1.0 – 2026-11-20
 
