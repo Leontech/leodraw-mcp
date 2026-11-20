@@ -1,0 +1,401 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LeoDraw MCP</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%230f6b52'/%3E%3Cpath d='M14 50l6-17 23-23a5 5 0 017 0l4 4a5 5 0 010 7L31 44z' fill='%23fff'/%3E%3Cpath d='M14 50l17-6-11-11z' fill='%23f0a500'/%3E%3C/svg%3E">
+<style>
+:root {
+  --bg: #e9eeeb; --surface: #fff; --surface-2: #f4f7f5; --ink: #17201d; --muted: #5d6b66; --faint: #8a9893;
+  --line: #d3dcd7; --spruce: #0f6b52; --spruce-soft: #dcefe7; --on-spruce: #fff;
+  --amber: #f0a500; --danger: #b83a2f; --danger-soft: #f8e1de; --ok: #1d8a5f; --warn: #9a6a00; --focus: #2f7dd1;
+  --shadow: 0 1px 2px rgba(23,32,29,.06), 0 8px 24px rgba(23,32,29,.08);
+  --mono: "Cascadia Mono", Consolas, monospace;
+  --sans: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --display: "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #121816; --surface: #1a2320; --surface-2: #151d1a; --ink: #e3ebe7; --muted: #94a59f; --faint: #6c7d77;
+    --line: #2a3632; --spruce: #45b993; --spruce-soft: #173a2f; --on-spruce: #06140f; --amber: #f5b82e;
+    --danger: #ec7b6f; --danger-soft: #3a1f1c; --ok: #45b993; --warn: #e2b04a; --focus: #6aa8ee;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.35); color-scheme: dark; }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; min-height: 100%; }
+body { background: var(--bg); color: var(--ink); font: 14px/1.45 var(--sans); -webkit-font-smoothing: antialiased; }
+a { color: inherit; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 8px; }
+.wrap { max-width: 1020px; margin: 0 auto; padding: 16px 18px 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: start; }
+.col { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+@media (max-width: 760px) { .wrap { grid-template-columns: 1fr; } }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); padding: 16px; }
+.card h2 { margin: 0 0 8px; font: 600 14px var(--display); }
+.cfg { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; }
+.cfg .file { display: flex; gap: 8px; align-items: stretch; }
+.cfg .file { flex-direction: column; gap: 4px; }
+.cfg .file.stale { opacity: .62; }
+.cfg .file .tag { font-size: 11.5px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.cfg .file .tag::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+.cfg .file.active .tag { color: var(--ok, #34c27a); font-weight: 600; }
+.cfg .file.active .tag::before { background: var(--ok, #34c27a); }
+.cfg .file .line { display: flex; gap: 8px; align-items: stretch; }
+.cfg .file code { flex: 1; min-width: 0; font: 11.5px var(--mono); background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px;
+  padding: 7px 9px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; direction: rtl; text-align: left; }
+.cfg .none { font-size: 12.5px; color: var(--muted); }
+.steps { margin: 10px 0 0; padding-left: 20px; font-size: 12.5px; color: var(--muted); display: grid; gap: 3px; }
+.steps b { color: var(--ink); font-weight: 600; }
+
+.hero { display: flex; gap: 16px; align-items: center; }
+.mark { width: 64px; height: 64px; flex: none; border-radius: 20px; display: grid; place-items: center;
+  background: linear-gradient(145deg, var(--spruce), color-mix(in srgb, var(--spruce) 55%, #000)); box-shadow: 0 14px 34px -14px var(--spruce); }
+.mark svg { width: 40px; height: 40px; }
+.hero h1 { margin: 0; font: 700 26px/1.1 var(--display); }
+.ver { margin: 4px 0 0; font: 500 12px var(--mono); color: var(--spruce); }
+.lead { margin: 8px 0 0; color: var(--muted); }
+.lang { margin-left: auto; align-self: flex-start; display: flex; gap: 2px; }
+.lang button { border: 1px solid var(--line); background: transparent; color: var(--muted); font: 600 11px var(--mono); padding: 3px 7px; border-radius: 6px; cursor: pointer; }
+.lang button[aria-pressed="true"] { background: var(--spruce-soft); color: var(--spruce); border-color: var(--spruce); }
+
+.status { display: grid; gap: 8px; }
+.row { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--line); }
+.dot { width: 10px; height: 10px; border-radius: 50%; flex: none; background: var(--faint); }
+.dot.ok { background: var(--ok); box-shadow: 0 0 0 4px color-mix(in srgb, var(--ok) 18%, transparent); }
+.dot.warn { background: var(--amber); box-shadow: 0 0 0 4px color-mix(in srgb, var(--amber) 22%, transparent); }
+.dot.off { background: var(--danger); }
+.row b { min-width: 128px; font-weight: 600; }
+.row span { color: var(--muted); }
+.row a { color: var(--spruce); cursor: pointer; }
+.diag { margin: 2px 2px 0; padding: 10px 12px; border-radius: 10px; font-size: 12.5px; background: color-mix(in srgb, var(--amber) 14%, var(--surface)); border: 1px solid color-mix(in srgb, var(--amber) 45%, transparent); }
+.diag code { display: block; margin-top: 6px; font: 11.5px var(--mono); color: var(--muted); word-break: break-word; }
+
+.big { width: 100%; border: 0; border-radius: 14px; padding: 15px 18px; font: 700 17px var(--display); cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 12px; transition: transform .12s, filter .12s, box-shadow .12s; }
+.big:hover { transform: translateY(-1px); filter: brightness(1.05); }
+.big:active { transform: translateY(0); }
+.big:disabled { opacity: .6; cursor: progress; transform: none; }
+.big svg { width: 24px; height: 24px; }
+.big.reg { background: linear-gradient(145deg, var(--spruce), color-mix(in srgb, var(--spruce) 70%, #000)); color: var(--on-spruce);
+  box-shadow: 0 12px 28px -12px var(--spruce); }
+.big.unreg { background: var(--surface); color: var(--danger); border: 2px solid color-mix(in srgb, var(--danger) 50%, transparent); }
+.big.unreg:hover { background: var(--danger-soft); }
+.msg { margin: 12px 0 0; padding: 12px 14px; border-radius: 10px; display: none; }
+.msg.show { display: block; }
+.msg.ok { background: var(--spruce-soft); color: var(--ink); border: 1px solid color-mix(in srgb, var(--spruce) 40%, transparent); }
+.msg.err { background: var(--danger-soft); color: var(--danger); }
+.msg b { display: block; margin-bottom: 2px; }
+.hint { margin: 10px 2px 0; font-size: 12.5px; color: var(--muted); }
+
+.code { margin-top: 8px; display: flex; gap: 8px; align-items: stretch; }
+.code code { flex: 1; min-width: 0; font: 12px var(--mono); background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px;
+  padding: 8px 10px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.btn { border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 0 12px; cursor: pointer; font: 600 12.5px var(--sans); color: var(--ink); }
+.btn:hover { border-color: var(--spruce); color: var(--spruce); }
+.sub { margin: 0; font-size: 12.5px; color: var(--muted); }
+.sub b { color: var(--ink); font-weight: 600; }
+.tabs { display: flex; gap: 4px; margin: -2px 0 8px; }
+.tabs button { border: 1px solid var(--line); background: transparent; color: var(--muted); font: 600 12px var(--sans); padding: 4px 10px; border-radius: 7px; cursor: pointer; }
+.tabs button[aria-pressed="true"] { background: var(--spruce-soft); color: var(--spruce); border-color: var(--spruce); }
+.hint .tested.warn { color: var(--warn); font-weight: 600; }
+
+.links { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.links a { display: flex; align-items: center; gap: 8px; padding: 9px 10px; font-size: 12.5px; border-radius: 10px; border: 1px solid var(--line);
+  text-decoration: none; transition: border-color .15s, background .15s; cursor: pointer; background: var(--surface); }
+.links a:hover { border-color: var(--spruce); background: var(--spruce-soft); }
+.links svg { width: 18px; height: 18px; color: var(--spruce); flex: none; }
+.support { display: flex; gap: 14px; align-items: center; padding: 12px 14px; border-radius: 12px; text-decoration: none; cursor: pointer;
+  border: 1px solid color-mix(in srgb, #f2b33d 55%, transparent); background: color-mix(in srgb, #f2b33d 12%, var(--surface)); transition: transform .15s; }
+.support:hover { transform: translateY(-1px); }
+.support .cup { font-size: 26px; }
+.support b { display: block; }
+.support small { color: var(--muted); font-size: 12.5px; }
+.author { --logo-mark: #1A90FF; --logo-word: var(--ink); --logo-tag: var(--muted);
+  display: grid; justify-items: center; gap: 6px; padding: 6px 12px 0; text-decoration: none; color: var(--muted); cursor: pointer; }
+.author .by { font: 600 10.5px var(--mono); text-transform: uppercase; letter-spacing: .12em; }
+.author .logo svg { width: 150px; height: auto; display: block; transition: transform .25s; }
+.author:hover .logo svg { transform: scale(1.04); }
+.author .web { font-size: 12.5px; }
+.author .web u { color: var(--ink); text-underline-offset: 2px; }
+.copy { margin: 0; text-align: center; font-size: 11px; line-height: 1.35; color: var(--faint); }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute">
+  <symbol id="i-pen" viewBox="0 0 64 64"><path d="M14 50l6-17 23-23a5 5 0 017 0l4 4a5 5 0 010 7L31 44z" fill="#fff"/><path d="M14 50l17-6-11-11z" fill="#f0a500"/><path d="M38 15l11 11" stroke="color-mix(in srgb,#0f6b52 60%,#000)" stroke-width="3"/></symbol>
+  <symbol id="i-plug" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M9 2v6M15 2v6M6 8h12v4a6 6 0 01-12 0zM12 18v4"/></symbol>
+  <symbol id="i-unplug" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M9 2v6M15 2v6M6 8h12v4a6 6 0 01-12 0zM12 18v4M3 3l18 18"/></symbol>
+  <symbol id="i-branch" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M6 3v12M18 9a3 3 0 100-6 3 3 0 000 6zM6 21a3 3 0 100-6 3 3 0 000 6zM18 9a9 9 0 01-9 9"/></symbol>
+  <symbol id="i-up" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M12 19V5M5 12l7-7 7 7"/></symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M3 6a2 2 0 012-2h4l2 2h8a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></symbol>
+  <symbol id="i-help" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M12 22a10 10 0 100-20 10 10 0 000 20zM9.1 9a3 3 0 015.8 1c0 2-3 3-3 3M12 17h.01"/></symbol>
+</svg>
+
+<div class="wrap">
+ <div class="col">
+  <div class="card hero">
+    <div class="mark"><svg><use href="#i-pen"/></svg></div>
+    <div>
+      <h1>LeoDraw MCP</h1>
+      <p class="ver" id="ver"></p>
+      <p class="lead" data-t="lead"></p>
+    </div>
+    <div class="lang"><button data-lang="cs">CZ</button><button data-lang="en">EN</button></div>
+  </div>
+
+  <div class="card">
+    <div class="status">
+      <div class="row"><i class="dot" id="d-claude"></i><b>Claude Desktop</b><span id="s-claude"></span></div>
+      <div class="row"><i class="dot" id="d-reg"></i><b data-t="leodraw"></b><span id="s-reg"></span></div>
+      <div class="row"><i class="dot" id="d-corel"></i><b>CorelDRAW</b><span id="s-corel"></span></div>
+      <div class="diag" id="diag" hidden><span id="diag-text"></span><code id="diag-err"></code></div>
+    </div>
+    <div style="margin-top:14px"><button class="big reg" id="big"></button></div>
+    <div class="msg" id="msg"></div>
+    <p class="hint"><span data-t="hint"></span> <span id="tested"></span></p>
+  </div>
+
+  <a class="support" data-link="support"><span class="cup">☕</span><span><b data-t="sup"></b><small data-t="supText"></small></span></a>
+  <p class="copy">© <span id="year">2026</span> Leoš Vilím · <span data-t="mit"></span><br><span data-t="tm"></span></p>
+ </div>
+
+ <div class="col">
+  <div class="card">
+    <h2 data-t="cfgTitle"></h2>
+    <div class="cfg" id="cfg"></div>
+    <ol class="steps">
+      <li data-th="step1"></li>
+      <li data-th="step2"></li>
+      <li data-th="step3"></li>
+    </ol>
+  </div>
+
+  <div class="card">
+    <div class="tabs"><button data-tab="json" aria-pressed="true" data-t="tabJson"></button><button data-tab="cc" data-t="tabCc"></button></div>
+    <p class="sub" id="tab-sub"></p>
+    <div class="code"><code id="cmd"></code><button class="btn" id="copy" data-t="copy"></button></div>
+  </div>
+
+  <div class="links">
+    <a data-link="source"><svg><use href="#i-branch"/></svg><span data-t="src"></span></a>
+    <a data-link="releases"><svg><use href="#i-up"/></svg><span data-t="rel"></span></a>
+    <a data-link="feedback"><svg><use href="#i-help"/></svg><span data-t="fb"></span></a>
+  </div>
+  <a class="author" data-link="web">
+    <span class="by" data-t="by"></span>
+    <span class="logo" id="logo">LEOTECH</span>
+    <span class="web"><span data-t="webText"></span> · <u>leotech.cz</u></span>
+  </a>
+ </div>
+</div>
+
+<script>
+"use strict";
+const T = {
+  cs: {
+    lead: "Propojí Clauda s CorelDRAW – Claude pak umí kreslit, upravovat a exportovat přímo ve vašem Corelu.",
+    leodraw: "LeoDraw v Claude",
+    found: "nalezen", notFound: "nenalezen – ", download: "stáhnout Claude Desktop",
+    registered: "zaregistrováno ✓", notRegistered: "nezaregistrováno", other: "zaregistrováno z jiné složky: ",
+    corelOn: "běží", corelOff: "neběží – stačí ho spustit, až budete s Claudem pracovat",
+    corelBlocked: "běží, ale nejde se k němu připojit",
+    corelBlockedHelp: "CorelDRAW je spuštěný, ale LeoDraw se k němu nedostane. Nejčastější příčina: Corel (nebo Claude) běží jako správce – oba musí běžet se stejnými právy, spusťte Corel normálně. Pomoct může i restart Corelu.",
+    detail: "Detail:",
+    reg: "Zaregistrovat do Claude", regThis: "Zaregistrovat tuto verzi", unreg: "Odregistrovat z Claude", working: "Pracuji…",
+    doneReg: "Hotovo! LeoDraw je v Claude Desktop zaregistrovaný.",
+    doneUnreg: "LeoDraw je z Claude Desktop odebraný.",
+    restart: "Teď Claude Desktop úplně ukončete (i z oblasti u hodin vpravo dole) a spusťte znovu.",
+    err: "Nepovedlo se:",
+    hint: "Program si zapíše jen svůj řádek do nastavení Claude Desktop (claude_desktop_config.json) a původní soubor předtím zazálohuje. Do CorelDRAW se nic neinstaluje.",
+    code: "Používáte Claude Code? Spusťte v terminálu:",
+    tabJson: "Ručně do JSON", tabCc: "Claude Code",
+    jsonHelp: "Bez tlačítka: <b>Ukázat soubor</b> → otevřít v Poznámkovém bloku → vložit do sekce <b>\"mcpServers\"</b> (oddělit čárkou) → uložit → restart Clauda.",
+    tested: "Odzkoušeno s CorelDRAW 2026", testedOk: "odzkoušená verze ✓", testedOther: "jiná verze než odzkoušená (2026) – nemusí fungovat vše",
+    copy: "Kopírovat", copied: "Zkopírováno ✓",
+    src: "Zdrojáky", rel: "Verze ke stažení", fb: "Chyba / nápad",
+    cfgTitle: "Konfigurace Claude Desktop", show: "Ukázat soubor", noCfg: "Konfigurační soubor Claude Desktop nebyl nalezen – nainstalujte Claude Desktop a jednou ho spusťte.",
+    cfgReg: "LeoDraw zapsán", cfgNot: "bez LeoDraw",
+    cfgActive: "Tento soubor Claude Desktop používá", cfgStale: "Claude ho nečte – pozůstatek starší verze (zápis sem nevadí)",
+    cfgUnknown: "nelze poznat, zda ho Claude používá", lastUsed: "naposledy",
+    step1: "Velkým tlačítkem vlevo se LeoDraw zapíše do souboru výše (je-li jich víc, do všech; <b>zelený</b> Claude právě používá).",
+    step2: "Pak Claude Desktop <b>úplně ukončete</b> (i ikonu u hodin vpravo dole → Ukončit) a spusťte znovu.",
+    step3: "Kontrola v Claude Desktop: <b>Nastavení → Vývojář</b> (Settings → Developer) – server <b>leodraw</b> má být „running“. Tlačítko <b>Upravit konfiguraci</b> (Edit Config) otevře složku s tímto souborem.",
+    sup: "Podpořit vývoj", supText: "LeoDraw je zdarma. Když vám šetří čas, můžete autorovi koupit kafe.",
+    by: "Vytvořil", webText: "vývoj hardwaru, firmwaru a softwaru", mit: "licence GNU GPL v3",
+    tm: "Nezávislý neoficiální projekt – společnosti Corel Corporation ani Anthropic s ním nemají nic společného a nepodporují ho. CorelDRAW je ochranná známka společnosti Corel Corporation, Claude je ochranná známka společnosti Anthropic, PBC.",
+    version: "verze",
+  },
+  en: {
+    lead: "Connects Claude to CorelDRAW – Claude can then draw, edit and export right in your CorelDRAW.",
+    leodraw: "LeoDraw in Claude",
+    found: "found", notFound: "not found – ", download: "download Claude Desktop",
+    registered: "registered ✓", notRegistered: "not registered", other: "registered from another folder: ",
+    corelOn: "running", corelOff: "not running – just start it when you work with Claude",
+    corelBlocked: "running, but cannot connect",
+    corelBlockedHelp: "CorelDRAW is running but LeoDraw cannot reach it. Most common cause: CorelDRAW (or Claude) runs as administrator – both must run with the same rights, start CorelDRAW normally. Restarting CorelDRAW may help too.",
+    detail: "Details:",
+    reg: "Register in Claude", regThis: "Register this version", unreg: "Unregister from Claude", working: "Working…",
+    doneReg: "Done! LeoDraw is registered in Claude Desktop.",
+    doneUnreg: "LeoDraw was removed from Claude Desktop.",
+    restart: "Now quit Claude Desktop completely (also from the system tray) and start it again.",
+    err: "Failed:",
+    hint: "Only LeoDraw's own entry is written to Claude Desktop's settings (claude_desktop_config.json); the original file is backed up first. Nothing is installed into CorelDRAW.",
+    code: "Using Claude Code? Run in a terminal:",
+    tabJson: "Manually (JSON)", tabCc: "Claude Code",
+    jsonHelp: "Without the button: <b>Show file</b> → open in Notepad → paste into the <b>\"mcpServers\"</b> section (separate with a comma) → save → restart Claude.",
+    tested: "Tested with CorelDRAW 2026", testedOk: "tested version ✓", testedOther: "not the tested version (2026) – some things may not work",
+    copy: "Copy", copied: "Copied ✓",
+    src: "Source code", rel: "Downloads", fb: "Bug / idea",
+    cfgTitle: "Claude Desktop configuration", show: "Show file", noCfg: "Claude Desktop's configuration file was not found – install Claude Desktop and start it once.",
+    cfgReg: "LeoDraw registered", cfgNot: "without LeoDraw",
+    cfgActive: "Claude Desktop uses this file", cfgStale: "not read by Claude – left over from an older version (writing here is harmless)",
+    cfgUnknown: "cannot tell whether Claude uses it", lastUsed: "last used",
+    step1: "The big button on the left writes LeoDraw into the file above (into all of them if there are several; Claude uses the <b>green</b> one).",
+    step2: "Then <b>quit Claude Desktop completely</b> (also the icon next to the clock → Quit) and start it again.",
+    step3: "Check in Claude Desktop: <b>Settings → Developer</b> – the <b>leodraw</b> server should be “running”. The <b>Edit Config</b> button opens the folder with this file.",
+    sup: "Support development", supText: "LeoDraw is free. If it saves you time, you can buy the author a coffee.",
+    by: "Created by", webText: "hardware, firmware and software development", mit: "GNU GPL v3 License",
+    tm: "Independent, unofficial project – not affiliated with, endorsed or sponsored by Corel Corporation or Anthropic. CorelDRAW is a trademark of Corel Corporation; Claude is a trademark of Anthropic, PBC.",
+    version: "version",
+  },
+};
+const base = location.pathname.replace(/\/$/, "");
+const $ = (s) => document.querySelector(s);
+let S = null, lang = localStorage.getItem("lang") || null, busy = false;
+const t = (k) => (T[lang] || T.en)[k] || k;
+
+async function api(path, method = "GET", body) {
+  const r = await fetch(base + "/api/" + path, { method, headers: body ? { "Content-Type": "application/json" } : {}, body: body ? JSON.stringify(body) : undefined });
+  if (!r.ok) throw new Error(await r.text());
+  return r.status === 204 ? null : r.json();
+}
+
+function links() {
+  const L = S ? S.links : {};
+  const v = S ? S.version : "";
+  return {
+    source: L.source, releases: (L.source || "") + "/releases", support: L.support, web: L.web,
+    feedback: `https://leotech.cz/download?fb=leodraw&v=${encodeURIComponent(v)}&lang=${lang}#leodraw`,
+    claude: "https://claude.ai/download",
+  };
+}
+
+function render() {
+  document.documentElement.lang = lang;
+  document.querySelectorAll("[data-t]").forEach((el) => (el.textContent = t(el.dataset.t)));
+  document.querySelectorAll("[data-th]").forEach((el) => (el.innerHTML = t(el.dataset.th))); // trusted static texts
+  document.querySelectorAll("[data-lang]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.lang === lang));
+  $("#year").textContent = Math.max(2026, new Date().getFullYear());
+  if (!S) return;
+  $("#ver").textContent = `${t("version")} ${S.version}`;
+  const tv = $("#tested");
+  tv.className = "tested"; tv.textContent = `${t("tested")} (${S.tested_corel}).`;
+  const R = S.reg;
+  $("#d-claude").className = "dot " + (R.claude_found ? "ok" : "off");
+  $("#s-claude").innerHTML = R.claude_found ? t("found") : `${t("notFound")}<a data-link="claude">${t("download")}</a>`;
+  $("#d-reg").className = "dot " + (R.registered ? "ok" : R.registered_other ? "warn" : "off");
+  $("#s-reg").textContent = R.registered ? t("registered") : R.registered_other ? t("other") + R.registered_other : t("notRegistered");
+  const C = S.corel, blocked = !C.running && C.process;
+  $("#d-corel").className = "dot " + (C.running ? "ok" : blocked ? "off" : "warn");
+  const sameMajor = C.version && S.tested_corel && C.version.split(".")[0] === S.tested_corel.split(".")[0];
+  $("#s-corel").textContent = C.running
+    ? `${t("corelOn")}${C.version ? " · " + C.version + " · " + (sameMajor ? t("testedOk") : t("testedOther")) : ""}`
+    : blocked ? t("corelBlocked") : t("corelOff");
+  if (C.running && C.version && !sameMajor) tv.classList.add("warn");
+  $("#diag").hidden = !blocked;
+  $("#diag-text").textContent = t("corelBlockedHelp");
+  $("#diag-err").textContent = C.error ? `${t("detail")} ${C.error}` : "";
+  const big = $("#big");
+  if (!busy) {
+    big.className = "big " + (R.registered ? "unreg" : "reg");
+    big.innerHTML = `<svg><use href="#${R.registered ? "i-unplug" : "i-plug"}"/></svg>${R.registered ? t("unreg") : R.registered_other ? t("regThis") : t("reg")}`;
+  }
+  showTab();
+  const cfg = $("#cfg");
+  cfg.innerHTML = "";
+  if (!R.configs.length) {
+    const p = document.createElement("div"); p.className = "none"; p.textContent = t("noCfg"); cfg.appendChild(p);
+  }
+  R.configs.forEach((c) => {
+    const row = document.createElement("div");
+    row.className = "file" + (c.active ? " active" : c.stale ? " stale" : "");
+    if (R.configs.length > 1 || c.active) {
+      const tag = document.createElement("div"); tag.className = "tag";
+      let txt = c.active ? t("cfgActive") : c.stale ? t("cfgStale") : t("cfgUnknown");
+      if (c.active && c.last_used) {
+        const d = new Date(c.last_used);
+        txt += ` · ${t("lastUsed")} ${d.toLocaleString(lang === "cs" ? "cs-CZ" : "en-GB", { day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit" })}`;
+      }
+      tag.textContent = txt; row.appendChild(tag);
+    }
+    const line = document.createElement("div"); line.className = "line"; row.appendChild(line);
+    const code = document.createElement("code"); code.textContent = "\u200E" + c.path + "\u200E";
+    code.title = c.command ? t("cfgReg") + ": " + c.command : t("cfgNot");
+    const btn = document.createElement("button"); btn.className = "btn";
+    btn.innerHTML = '<svg style="width:15px;height:15px;vertical-align:-3px"><use href="#i-folder"/></svg> ';
+    btn.appendChild(document.createTextNode(t("show")));
+    btn.onclick = () => api("reveal", "POST", { path: c.path }).catch(() => {});
+    code.title = c.path + "\n" + code.title;
+    line.appendChild(code); line.appendChild(btn); cfg.appendChild(row);
+  });
+  wireLinks();
+}
+
+function wireLinks() {
+  document.querySelectorAll("[data-link]").forEach((a) => (a.onclick = (e) => {
+    e.preventDefault();
+    const url = links()[a.dataset.link];
+    if (url) api("open", "POST", { url }).catch(() => window.open(url, "_blank"));
+  }));
+}
+
+function showMsg(ok, title, text) {
+  const m = $("#msg");
+  m.className = "msg show " + (ok ? "ok" : "err");
+  m.innerHTML = "";
+  const b = document.createElement("b"); b.textContent = title; m.appendChild(b);
+  if (text) m.appendChild(document.createTextNode(text));
+}
+
+async function refresh() {
+  try { S = await api("state"); if (!lang) lang = S.lang; render(); } catch {}
+}
+
+$("#big").onclick = async () => {
+  if (!S || busy) return;
+  const install = !S.reg.registered;
+  busy = true;
+  const big = $("#big"); big.disabled = true; big.textContent = t("working");
+  try {
+    const r = await api(install ? "register" : "unregister", "POST");
+    if (r.ok) showMsg(true, install ? t("doneReg") : t("doneUnreg"), t("restart"));
+    else showMsg(false, t("err"), " " + (r.error || ""));
+  } catch (e) { showMsg(false, t("err"), " " + e.message); }
+  busy = false; big.disabled = false;
+  await refresh();
+};
+
+let tab = "json";
+function showTab() {
+  document.querySelectorAll("[data-tab]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.tab === tab));
+  const v = tab === "json" ? S.manual_json : S.claude_code_cmd;
+  $("#cmd").textContent = tab === "json" ? v.replace(/\s*\n\s*/g, " ") : v;
+  $("#cmd").title = v;
+  if (tab === "json") $("#tab-sub").innerHTML = t("jsonHelp"); else $("#tab-sub").textContent = t("code");
+}
+document.querySelectorAll("[data-tab]").forEach((b) => (b.onclick = () => { tab = b.dataset.tab; showTab(); }));
+$("#copy").onclick = async () => {
+  try { await navigator.clipboard.writeText(tab === "json" ? S.manual_json : S.claude_code_cmd); $("#copy").textContent = t("copied"); setTimeout(() => ($("#copy").textContent = t("copy")), 1600); } catch {}
+};
+
+document.querySelectorAll("[data-lang]").forEach((b) => (b.onclick = () => { lang = b.dataset.lang; localStorage.setItem("lang", lang); render(); }));
+
+fetch(base + "/leotech.svg").then((r) => r.text()).then((svg) => { if (svg.startsWith("<svg")) $("#logo").innerHTML = svg; }).catch(() => {});
+setInterval(() => fetch(base + "/api/ping").catch(() => {}), 2000);
+setInterval(refresh, 4000);
+addEventListener("pagehide", () => navigator.sendBeacon(base + "/api/bye"));
+render();
+refresh();
+</script>
+</body>
+</html>

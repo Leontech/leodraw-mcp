@@ -1,0 +1,70 @@
+name: Release
+
+# A new version in cmd/leodraw-mcp/main.go (const appVersion) pushed to main → builds leodraw-mcp.exe
+# and publishes the GitHub release vX.Y.Z with leodraw-mcp.zip (exe + license + readme) and
+# leodraw-mcp.mcpb (MCP Bundle for one-click installation in Claude Desktop, from mcpb/manifest.json).
+# Versions 0.x are published as pre-releases.
+# Notes come from the "## X.Y.Z" section of CHANGELOG.md. A change of CHANGELOG.md alone updates the notes
+# of an existing release (fixing a typo in the release notes needs no new version).
+
+on:
+  push:
+    branches: [main]
+    paths: [cmd/leodraw-mcp/main.go, CHANGELOG.md]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Version
+        id: v
+        run: |
+          v=$(sed -n 's/^const appVersion = "\(.*\)"/\1/p' cmd/leodraw-mcp/main.go)
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          if gh release view "v$v" >/dev/null 2>&1; then echo "exists=1" >> "$GITHUB_OUTPUT"; fi
+      - name: Test
+        if: steps.v.outputs.exists != '1'
+        run: go test ./internal/mcp ./internal/geom ./internal/colors
+      - name: Build
+        if: steps.v.outputs.exists != '1'
+        run: |
+          mkdir dist
+          GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o dist/leodraw-mcp.exe ./cmd/leodraw-mcp
+          cp LICENSE dist/LICENSE.txt
+          cp README.md dist/README.md
+          (cd dist && zip -9 ../leodraw-mcp.zip *)
+      - name: MCP Bundle
+        if: steps.v.outputs.exists != '1'
+        run: |
+          mkdir -p bundle/server
+          sed 's/__VERSION__/${{ steps.v.outputs.version }}/' mcpb/manifest.json > bundle/manifest.json
+          cp mcpb/icon.png bundle/icon.png
+          cp dist/leodraw-mcp.exe bundle/server/leodraw-mcp.exe
+          npx -y @anthropic-ai/mcpb validate bundle/manifest.json
+          npx -y @anthropic-ai/mcpb pack bundle leodraw-mcp.mcpb
+      - name: Publish
+        if: steps.v.outputs.exists != '1'
+        run: |
+          v=${{ steps.v.outputs.version }}
+          awk -v h="## $v" '$0 ~ "^## " {f = (index($0, h) == 1); next} f' CHANGELOG.md > notes.md
+          pre=""; case "$v" in 0.*) pre="--prerelease";; esac
+          gh release create "v$v" leodraw-mcp.zip leodraw-mcp.mcpb --title "LeoDraw MCP $v" --notes-file notes.md $pre
+      - name: Update notes of the existing release
+        if: steps.v.outputs.exists == '1'
+        run: |
+          v=${{ steps.v.outputs.version }}
+          awk -v h="## $v" '$0 ~ "^## " {f = (index($0, h) == 1); next} f' CHANGELOG.md > notes.md
+          gh release edit "v$v" --notes-file notes.md

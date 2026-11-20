@@ -1,0 +1,35 @@
+{
+  "manifest_version": "0.3",
+  "name": "leodraw-mcp",
+  "display_name": "LeoDraw MCP for CorelDRAW",
+  "version": "__VERSION__",
+  "description": "Let Claude draw and edit in CorelDRAW on Windows: shapes, text, layers, pages, transformations, styles, previews and export (unofficial).",
+  "long_description": "LeoDraw MCP connects Claude to the CorelDRAW instance running on your Windows PC (COM automation). Claude can create and edit documents, pages and layers, draw shapes and curves (also from SVG path data), write and format text, move, align and transform objects, set fills and outlines, look at the result as a PNG preview and export to PDF, SVG, DXF, PNG and more.\n\nMillimetres, page coordinates with the origin at the top-left corner, and every tool call is exactly one undo step in CorelDRAW.\n\nUnofficial project – not affiliated with Corel Corporation or Anthropic. CorelDRAW is a trademark of Corel Corporation.",
+  "author": {
+    "name": "Leoš Vilím",
+    "url": "https://leotech.cz"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Leontech/leodraw-mcp"
+  },
+  "homepage": "https://github.com/Leontech/leodraw-mcp",
+  "documentation": "https://github.com/Leontech/leodraw-mcp#readme",
+  "support": "https://github.com/Leontech/leodraw-mcp/issues",
+  "icon": "icon.png",
+  "server": {
+    "type": "binary",
+    "entry_point": "server/leodraw-mcp.exe",
+    "mcp_config": {
+      "command": "${__dirname}/server/leodraw-mcp.exe",
+      "args": [],
+      "env": {}
+    }
+  },
+  "tools_generated": true,
+  "keywords": ["coreldraw", "corel", "vector", "graphics", "design", "laser", "plotter", "svg", "pdf", "dxf"],
+  "license": "GPL-3.0-or-later",
+  "compatibility": {
+    "platforms": ["win32"]
+  }
+}
